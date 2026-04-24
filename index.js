@@ -1,7 +1,7 @@
-const LIFF_ID = "2009827198-EiWGvF0N"; 
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzEqLJDyl6t3N2pKcDnO0-w0uFTcO6x5tzQLN69-YsuSEWtEsMpXVwKx89592abTs7VdQ/exec";
+const LIFF_ID = "2009827198-ryYvSe19"; 
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzle63bapXmwVkCuq1nJjhhe7NmLPWGhSwKpoXfwjN3Rp74ZiIbMXlFp9YthF9wSakI5A/exec";
 // ★ 登録用LIFFのURLを定義
-const REGISTER_LIFF_URL = "https://liff.line.me/2009827198-qvnHhjxl"; 
+const REGISTER_LIFF_URL = "https://liff.line.me/2009827198-ryYvSe19"; 
 
 // 画面のテキストを更新する関数
 function updateStatus(text) {
