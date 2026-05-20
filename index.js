@@ -1,18 +1,15 @@
 const LIFF_ID = "2009827198-ryYvSe19"; 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzle63bapXmwVkCuq1nJjhhe7NmLPWGhSwKpoXfwjN3Rp74ZiIbMXlFp9YthF9wSakI5A/exec";
-// ★ 登録用LIFFのURLを定義
+// ※提示いただいたコードのままにしていますが、出勤用の登録LIFFとURLが異なる場合は適宜変更してください
 const REGISTER_LIFF_URL = "https://liff.line.me/2009827198-ryYvSe19"; 
 
-// 画面のテキストを更新する関数
 function updateStatus(text) {
-  document.getElementById("status-text").innerText = text;
+  document.getElementById("status-text").innerHTML = text; // 改行を反映させるためinnerHTML
 }
 
-// エラーを表示する関数（★ 登録ボタンを出すかどうかの判定を追加）
 function showError(text, showRegisterBtn = false) {
   document.getElementById("spinner").style.display = "none";
   document.getElementById("status-text").innerText = "エラーが発生しました";
-  // ボタンを出す場合は、メッセージを短く表示
   document.getElementById("error-message").innerText = text;
   
   if (showRegisterBtn) {
@@ -20,7 +17,7 @@ function showError(text, showRegisterBtn = false) {
   }
 }
 
-// ページの読み込みが完了した時の処理
+// ページの読み込みが完了したら自動でスタート
 window.onload = async function() {
   try {
     await liff.init({ liffId: LIFF_ID });
@@ -30,21 +27,12 @@ window.onload = async function() {
       return;
     }
 
-    // 「出勤する」ボタンが押された時の処理
-    document.getElementById("clock-in-btn").addEventListener("click", function() {
-      if (navigator.geolocation) {
-        document.getElementById("initial-view").style.display = "none";
-        document.getElementById("spinner").style.display = "block";
-        main(); 
-      } else {
-        showError("この端末では位置情報がサポートされていません。");
-      }
+    document.getElementById("register-btn").addEventListener("click", function() {
+      window.location.href = REGISTER_LIFF_URL;
     });
 
-    // ★ 「登録画面へ進む」ボタンが押された時の処理
-    document.getElementById("register-btn").addEventListener("click", function() {
-      window.location.href = REGISTER_LIFF_URL; // 別LIFFへ遷移
-    });
+    // 自動でメイン処理を開始
+    main();
 
   } catch (error) {
     showError("LIFFの読み込みに失敗しました。");
@@ -52,13 +40,44 @@ window.onload = async function() {
   }
 };
 
-// メインの打刻処理
 async function main() {
   try {
     updateStatus("ユーザー情報を取得中...");
     const profile = await liff.getProfile();
     const userId = profile.userId;
 
+    // ▼ 打刻済みかどうかの確認フロー
+    updateStatus("打刻状態を確認中...");
+    const checkPayload = {
+      userId: userId,
+      action: "check"
+    };
+
+    const checkResponse = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(checkPayload),
+      redirect: "follow"
+    });
+
+    let checkResult;
+    try {
+      checkResult = await checkResponse.json();
+    } catch (e) {
+      throw new Error("確認処理で予期せぬエラーが発生しました。");
+    }
+
+    // ★ 400（すでに退勤済み）だった場合
+    if (checkResult.status === 400) {
+      document.getElementById("spinner").style.display = "none";
+      updateStatus("すでに退勤しています。<br>出勤の場合は再度メニューから<br>出勤を押してください。");
+      document.getElementById("status-text").style.color = "#ff334b";
+      return; // 本打刻には進まずストップ
+    } else if (checkResult.status !== 200) {
+      throw new Error(`確認処理でエラーが発生しました。（コード: ${checkResult.status}）`);
+    }
+
+    // ▼ 200だった場合（本打刻に進む）
     updateStatus("位置情報を取得中...");
     const position = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -84,7 +103,7 @@ async function main() {
       userId: userId,
       timestamp: timestamp,
       location: `${longitude},${latitude}`,
-      action: "clock_in"
+      action: "clock_out" // ★ 退勤打刻のアクション名
     };
 
     updateStatus("データを送信中...");
@@ -97,20 +116,15 @@ async function main() {
       redirect: "follow"
     });
 
-    // ★ GASから返ってきたテキスト（Anycrossの実行結果）を取得
     const responseText = await response.text();
 
-    // ★ Anycrossのエラー判定処理
     try {
       const resultJson = JSON.parse(responseText);
-      // Anycrossは成功時に code: 0 を返す仕様。0以外ならエラーとみなす。
       if (resultJson.code !== 0 && resultJson.code !== undefined) {
-        // メッセージをシンプルに変更
         showError("名前の登録が見つかりませんでした。「登録」から名前の登録を行ってください。", true);
         return;
-        }
+      }
     } catch (e) {
-      // JSON形式じゃないエラー（GASがクラッシュした等）の場合は通常の通信エラー扱い
       if (!response.ok || responseText.includes("Error")) {
         throw new Error(`システムエラー: ${responseText}`);
       }
@@ -118,7 +132,7 @@ async function main() {
 
     // 成功したらLIFFを閉じる
     document.getElementById("spinner").style.display = "none";
-    updateStatus("打刻完了！");
+    updateStatus("退勤打刻完了！"); // メッセージを退勤用に変更
     setTimeout(() => {
       liff.closeWindow();
     }, 500);
