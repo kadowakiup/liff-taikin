@@ -32,7 +32,15 @@ window.onload = async function() {
     });
 
     // 自動でメイン処理を開始
-    main();
+    // ポップアップを出して「OK」が押された時だけメイン処理を開始
+    if (window.confirm("本当に退勤しますか？")) {
+      main();
+    } else {
+      // 「キャンセル」が押された場合はそのまま閉じる
+      updateStatus("キャンセルしました");
+      document.getElementById("spinner").style.display = "none";
+      setTimeout(() => { liff.closeWindow(); }, 1000);
+    }
 
   } catch (error) {
     showError("LIFFの読み込みに失敗しました。");
