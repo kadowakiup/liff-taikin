@@ -39,7 +39,7 @@ window.onload = async function() {
       // 「キャンセル」が押された場合はそのまま閉じる
       updateStatus("キャンセルしました");
       document.getElementById("spinner").style.display = "none";
-      setTimeout(() => { liff.closeWindow(); }, 1000);
+      setTimeout(() => { liff.closeWindow(); }, 2000);
     }
 
   } catch (error) {
@@ -90,7 +90,7 @@ async function main() {
     const position = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 20000,
         maximumAge: 0
       });
     });
