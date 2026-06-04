@@ -148,9 +148,18 @@ async function main() {
   } catch (error) {
     console.error("Error:", error);
     
+    // ▼ 位置情報（Geolocation）特有のエラーハンドリングを強化 ▼
     if (error.code === 1) {
+      // 権限がない場合
       showError("位置情報の取得が許可されていません。スマホの設定からLINEへの位置情報アクセスを許可してください。");
+    } else if (error.code === 3) {
+      // タイムアウト（20秒見つからなかった）場合
+      showError("位置情報の取得に時間がかかりすぎました。\n建物の奥にいるとGPSが届きません。窓際に移動するか、Wi-Fiをオンにしてから再度お試しください。");
+    } else if (error.code === 2) {
+      // 電波・ネットワーク不良で位置が特定できない場合
+      showError("現在地を特定できませんでした。通信環境の良い場所で再度お試しください。");
     } else {
+      // その他のシステムエラー
       showError(error.message || "予期せぬ通信エラーが発生しました。");
     }
   }
