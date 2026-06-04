@@ -77,17 +77,27 @@ async function main() {
 
     // ★ 400（すでに退勤済み）だった場合
     if (checkResult.status === 400) {
+      // 400: すでに退勤済み
       document.getElementById("spinner").style.display = "none";
       updateStatus("すでに退勤しています。<br>出勤の場合は再度メニューから<br>出勤を押してください。");
       document.getElementById("status-text").style.color = "#ff334b";
-      return; // 本打刻には進まずストップ
+      return; 
     } 
-    // ▼▼▼ 今回追加した412（出勤打刻・シフトなし）の処理 ▼▼▼
     else if (checkResult.status === 412) {
-      showError("出勤打刻がない、もしくはシフトがない可能性があります。社員に確認してください");
+      // 412: シフトが休み扱い
+      showError("シフトが休み扱いになっている可能性があります。社員に確認をしてください。");
       return;
     } 
-    // ▲▲▲ ここまで追加 ▲▲▲
+    else if (checkResult.status === 416) {
+      // 416: 出勤打刻なし
+      showError("出勤打刻がされていません。社員に確認してください。");
+      return;
+    } 
+    else if (checkResult.status === 444) {
+      // 444: 前半・後半シフトの特殊エラー（長文なので改行を入れて読みやすく）
+      showError("前半のシフトに対する打刻でしたらすでに打刻されています。\n後半のシフトに対する打刻の場合、出勤打刻がされていないので社員に確認してください。");
+      return;
+    } 
     else if (checkResult.status !== 200) {
       throw new Error(`確認処理でエラーが発生しました。（コード: ${checkResult.status}）`);
     }
