@@ -81,7 +81,14 @@ async function main() {
       updateStatus("すでに退勤しています。<br>出勤の場合は再度メニューから<br>出勤を押してください。");
       document.getElementById("status-text").style.color = "#ff334b";
       return; // 本打刻には進まずストップ
-    } else if (checkResult.status !== 200) {
+    } 
+    // ▼▼▼ 今回追加した412（出勤打刻・シフトなし）の処理 ▼▼▼
+    else if (checkResult.status === 412) {
+      showError("出勤打刻がない、もしくはシフトがない可能性があります。社員に確認してください");
+      return;
+    } 
+    // ▲▲▲ ここまで追加 ▲▲▲
+    else if (checkResult.status !== 200) {
       throw new Error(`確認処理でエラーが発生しました。（コード: ${checkResult.status}）`);
     }
 
