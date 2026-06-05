@@ -105,6 +105,8 @@ async function main() {
       
       // 「OK」が押されたら、再度ぐるぐるを出してこのまま下の「位置情報取得→本打刻」へ進ませる
       document.getElementById("spinner").style.display = "block";
+
+      saitinFlag = "yes";
     }
     // ▲▲▲ ここまで追加 ▲▲▲
     else if (checkResult.status === 412) {
