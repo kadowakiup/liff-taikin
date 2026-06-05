@@ -75,6 +75,8 @@ async function main() {
       throw new Error("確認処理で予期せぬエラーが発生しました。");
     }
 
+    let saitinFlag = "no";
+
     // ★ 400（すでに退勤済み）だった場合
     // ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
 
@@ -98,7 +100,7 @@ async function main() {
         // キャンセルされたら処理を完全にストップ
         updateStatus("キャンセルしました");
         setTimeout(() => { liff.closeWindow(); }, 1500);
-        return; 
+        return;
       }
       
       // 「OK」が押されたら、再度ぐるぐるを出してこのまま下の「位置情報取得→本打刻」へ進ませる
