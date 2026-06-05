@@ -76,6 +76,8 @@ async function main() {
     }
 
     // ★ 400（すでに退勤済み）だった場合
+    // ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
+
     if (checkResult.status === 400) {
       // 400: すでに退勤済み
       document.getElementById("spinner").style.display = "none";
@@ -83,6 +85,25 @@ async function main() {
       document.getElementById("status-text").style.color = "#ff334b";
       return; 
     } 
+    // ▼▼▼ 新規追加：退勤時間前（405）のアラート ▼▼▼
+    else if (checkResult.status === 405) {
+      // 一旦ぐるぐるを消してアラートを出す
+      document.getElementById("spinner").style.display = "none";
+      
+      // 確認ポップアップを表示
+      const isSure = window.confirm("予定の退勤時間より前ですが、本当に退勤してよろしいですか？");
+      
+      if (!isSure) {
+        // キャンセルされたら処理を完全にストップ
+        updateStatus("キャンセルしました");
+        setTimeout(() => { liff.closeWindow(); }, 1500);
+        return; 
+      }
+      
+      // 「OK」が押されたら、再度ぐるぐるを出してこのまま下の「位置情報取得→本打刻」へ進ませる
+      document.getElementById("spinner").style.display = "block";
+    }
+    // ▲▲▲ ここまで追加 ▲▲▲
     else if (checkResult.status === 412) {
       // 412: シフトが休み扱い
       showError("シフトが休み扱いになっている可能性があります。社員に確認をしてください。");
@@ -94,7 +115,7 @@ async function main() {
       return;
     } 
     else if (checkResult.status === 444) {
-      // 444: 前半・後半シフトの特殊エラー（長文なので改行を入れて読みやすく）
+      // 444: 前半・後半シフトの特殊エラー
       showError("前半のシフトに対する打刻でしたらすでに打刻されています。\n後半のシフトに対する打刻の場合、出勤打刻がされていないので社員に確認してください。");
       return;
     } 
