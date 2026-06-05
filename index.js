@@ -91,7 +91,8 @@ async function main() {
       document.getElementById("spinner").style.display = "none";
       
       // 確認ポップアップを表示
-      const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になりますが、本当に退勤してよろしいですか？");
+      const isSure = window.confirm("予定の退勤時間より前ですが、本当に退勤してよろしいですか？");
+      // const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になりますが、本当に退勤してよろしいですか？");
       
       if (!isSure) {
         // キャンセルされたら処理を完全にストップ
