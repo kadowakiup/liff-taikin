@@ -154,7 +154,8 @@ async function main() {
       userId: userId,
       timestamp: timestamp,
       location: `${longitude},${latitude}`,
-      action: "clock_out" // ★ 退勤打刻のアクション名
+      action: "clock_out", // 退勤打刻のアクション名
+      saitin: saitinFlag   // ▼▼▼ 3. ここを追加 ▼▼▼
     };
 
     updateStatus("データを送信中...");
