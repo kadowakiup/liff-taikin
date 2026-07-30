@@ -133,9 +133,9 @@ async function main() {
     updateStatus("位置情報を取得中...<br>お待ちください");
     const position = await new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0
+        enableHighAccuracy: false, // ★室内の電波も許容する
+        timeout: 30000,            // ★タイムアウトを30秒に延長
+        maximumAge: 60000          // ★1分以内の位置情報キャッシュを許容
       });
     });
 
@@ -183,12 +183,9 @@ async function main() {
       }
     }
 
-    // 成功したらLIFFを閉じる
+    // 成功時の処理（自動で閉じないように変更）
     document.getElementById("spinner").style.display = "none";
-    updateStatus("退勤打刻完了！"); // メッセージを退勤用に変更
-    setTimeout(() => {
-      liff.closeWindow();
-    }, 500);
+    updateStatus("退勤打刻完了！<br>画面左上の「×」ボタンで閉じてください。");
 
   } catch (error) {
     console.error("Error:", error);
