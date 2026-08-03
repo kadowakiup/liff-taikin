@@ -200,7 +200,12 @@ async function main() {
     } else if (error.code === 2) {
       // 電波・ネットワーク不良で位置が特定できない場合
       showError("現在地を特定できませんでした。通信環境の良い場所で再度お試しください。");
-    } else {
+    } 
+    // ▼▼▼ 新規追加：Load failed（iPhoneのトラッキング防止等による通信切断） ▼▼▼
+    else if (error.message === "Load failed" || (error.message && error.message.includes("Load failed"))) {
+      showError("スマホのセキュリティ設定により通信が切断されましたが、打刻自体は完了している可能性が高いです。\n念のため、社員に退勤できているか確認してください。");
+    }
+    else {
       // その他のシステムエラー
       showError(error.message || "予期せぬ通信エラーが発生しました。");
     }
