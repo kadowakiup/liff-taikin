@@ -29,10 +29,8 @@ async function fetchWithRetry(url, params, maxRetries, statusTextPrefix) {
     } else {
       updateStatus(`${statusTextPrefix}<br>このままお待ちください`);
     }
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); 
-
     try {
       const response = await fetch(fetchUrl, {
         method: "GET",
@@ -40,16 +38,13 @@ async function fetchWithRetry(url, params, maxRetries, statusTextPrefix) {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
-
       const responseText = await response.text();
       
       if (responseText.includes("現在、ファイルを開くことができません") || responseText.includes("<html")) {
         throw new Error("GoogleHTML_Error");
       }
-
       const resultJson = JSON.parse(responseText);
       return resultJson; 
-
     } catch (error) {
       clearTimeout(timeoutId);
       console.warn(`通信アタック ${i + 1}回目 失敗:`, error);
@@ -71,16 +66,13 @@ async function fetchWithRetry(url, params, maxRetries, statusTextPrefix) {
 window.onload = async function() {
   try {
     await liff.init({ liffId: LIFF_ID });
-
     if (!liff.isLoggedIn()) {
       liff.login();
       return;
     }
-
     document.getElementById("register-btn").addEventListener("click", function() {
       window.location.href = REGISTER_LIFF_URL;
     });
-
     if (window.confirm("本当に退勤しますか？")) {
       main();
     } else {
@@ -88,7 +80,6 @@ window.onload = async function() {
       document.getElementById("spinner").style.display = "none";
       setTimeout(() => { liff.closeWindow(); }, 2000);
     }
-
   } catch (error) {
     showError("LIFFの読み込みに失敗しました。\n詳細: " + (error.message || error));
     console.error(error);
@@ -102,41 +93,34 @@ async function main() {
     const userId = profile.userId;
 
     // ==========================================
-    // 1. 打刻状態の確認処理 (リトライ機能付き)
+    // 位置情報の取得
+    // （checkとclock_outをGAS側で統合したため、先に位置情報を取得する）
     // ==========================================
-    const checkParams = new URLSearchParams({
-      userId: userId,
-      action: "check"
+    updateStatus("位置情報を取得中...<br>お待ちください");
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: false, 
+        timeout: 30000,            
+        maximumAge: 60000          
+      });
     });
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
 
-    let checkResult;
-    try {
-      checkResult = await fetchWithRetry(WEBHOOK_URL, checkParams, 4, "打刻状態を確認中...");
-    } catch (e) {
-      throw new Error(`${e.message}\n少し時間をおいてから再度お試しいただくか、Lark上で直接確認してください。`);
-    }
-
-    // AnycrossがBodyの中にステータスを隠している場合を取り出す
-    let currentStatus = checkResult.status;
-    if (currentStatus === 200 && checkResult.body) {
-      try {
-        const bodyJson = JSON.parse(checkResult.body);
-        if (bodyJson.status) {
-          currentStatus = bodyJson.status;
-        }
-      } catch (err) {}
-    }
-
-    let saitinFlag = "no";
+    // ==========================================
+    // 打刻データの送信（GAS内でcheck→clock_outを連続実行） (リトライ機能付き)
+    // ==========================================
+    let resultJson = await submitClockOut(userId, latitude, longitude, "no", false);
+    let resultStatus = resultJson.status;
 
     // ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
-    if (currentStatus === 400) {
+    if (resultStatus === 400) {
       document.getElementById("spinner").style.display = "none";
       updateStatus("すでに退勤しています。<br>出勤の場合は再度メニューから<br>出勤を押してください。");
       document.getElementById("status-text").style.color = "#ff334b";
       return; 
     } 
-    else if (currentStatus === 405) {
+    else if (resultStatus === 405) {
       document.getElementById("spinner").style.display = "none";
       const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になりますが、本当に退勤してよろしいですか？");
       
@@ -147,76 +131,35 @@ async function main() {
       }
       
       document.getElementById("spinner").style.display = "block";
-      saitinFlag = "yes";
+      // 早退確認済みとして、saitin=yesで退勤処理を実行（checkはGAS側でスキップ）
+      resultJson = await submitClockOut(userId, latitude, longitude, "yes", true);
+      resultStatus = resultJson.status;
+
+      if (resultStatus !== 200 && resultStatus !== undefined) {
+        showError("処理エラーが発生しました。（ステータス: " + resultStatus + "）", true);
+        return;
+      }
     }
-    else if (currentStatus === 412) {
+    else if (resultStatus === 412) {
       showError("シフトが休み扱いになっている可能性があります。社員に確認をしてください。");
       return;
     } 
-    else if (currentStatus === 416) {
+    else if (resultStatus === 416) {
       showError("出勤打刻がされていません。社員に確認してください。");
       return;
     } 
-    else if (currentStatus === 444) {
+    else if (resultStatus === 444) {
       showError("前半のシフトに対する打刻でしたらすでに打刻されています。\n後半のシフトに対する打刻の場合、出勤打刻がされていないので社員に確認してください。");
       return;
     } 
-    else if (currentStatus !== 200) {
-      throw new Error(`確認処理エラー（コード: ${currentStatus}）\n詳細: ${checkResult.body || ""}`);
-    }
-
-    // ==========================================
-    // 2. 位置情報の取得
-    // ==========================================
-    updateStatus("位置情報を取得中...<br>お待ちください");
-    const position = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false, 
-        timeout: 30000,            
-        maximumAge: 60000          
-      });
-    });
-
-    const latitude = position.coords.latitude;
-    const longitude = position.coords.longitude;
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    
-    const timestamp = `${year}-${month}-${day} ${hours}:${minutes}`;
-
-    // ==========================================
-    // 3. 本打刻データの送信 (リトライ機能付き)
-    // ==========================================
-    const submitParams = new URLSearchParams({
-      userId: userId,
-      timestamp: timestamp,
-      location: `${longitude},${latitude}`,
-      action: "clock_out",
-      saitin: saitinFlag
-    });
-
-    let resultJson;
-    try {
-      resultJson = await fetchWithRetry(WEBHOOK_URL, submitParams, 4, "データを送信中...");
-    } catch (e) {
-      throw new Error(`${e.message}\n電波の良い環境で再度お試しいただくか、打刻できているか社員に確認してください。`);
-    }
-
-    // ★ 変更点：出勤打刻に合わせて status: 200 で成功判定するように統一
-    if (resultJson.status !== 200 && resultJson.status !== undefined) {
-      showError("処理エラーが発生しました。（ステータス: " + resultJson.status + "）", true);
+    else if (resultStatus !== 200 && resultStatus !== undefined) {
+      showError("処理エラーが発生しました。（ステータス: " + resultStatus + "）", true);
       return;
     }
 
     // 打刻完了時の処理
     document.getElementById("spinner").style.display = "none";
     updateStatus("退勤打刻完了！<br>画面左上の「×」ボタンで閉じてください。");
-
   } catch (error) {
     console.error("Error:", error);
     
@@ -229,5 +172,42 @@ async function main() {
     } else {
       showError(error.message || "予期せぬ通信エラーが発生しました。");
     }
+  }
+}
+
+// ==========================================
+// 打刻データ送信用の共通関数
+// saitinFlag: "no" または "yes"
+// isConfirmedEarly: true の場合、GAS側のcheckをスキップして直接退勤処理する
+// ==========================================
+async function submitClockOut(userId, latitude, longitude, saitinFlag, isConfirmedEarly) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const timestamp = `${year}-${month}-${day} ${hours}:${minutes}`;
+
+  const params = new URLSearchParams({
+    userId: userId,
+    timestamp: timestamp,
+    location: `${longitude},${latitude}`,
+    action: "clock_out",
+    saitin: saitinFlag
+  });
+  if (isConfirmedEarly) {
+    params.set("confirmedEarly", "yes");
+  }
+
+  try {
+    return await fetchWithRetry(
+      WEBHOOK_URL,
+      params,
+      4,
+      isConfirmedEarly ? "退勤データを再送信中..." : "データを送信中..."
+    );
+  } catch (e) {
+    throw new Error(`${e.message}\n電波の良い環境で再度お試しいただくか、打刻できているか社員に確認してください。`);
   }
 }
