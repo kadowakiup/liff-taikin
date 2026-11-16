@@ -337,24 +337,26 @@ async function main() {
     let resultJson = await submitClockOut(userId, latitude, longitude, "no", false);
     let resultStatus = resultJson.status;
 
-    // ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
+// ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
     if (resultStatus === 400) {
       document.getElementById("spinner").style.display = "none";
-      updateStatus("すでに退勤しています。<br>出勤の場合は再度メニューから<br>出勤を押してください。");
       document.getElementById("status-text").style.color = "#ff334b";
+      updateStatus("すでに退勤しています。<br>出勤の場合は再度メニューから<br>出勤を押してください。");
       return; 
     } 
     else if (resultStatus === 405) {
       document.getElementById("spinner").style.display = "none";
-      const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になります。<br>また、社員に事前の報告がない場合は降格になります。本当に退勤してよろしいですか？");
-      document.getElementById("status-text").style.color = "#ff334b";
+      const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になります。また、社員に事前の報告がない場合は降格になります。本当に退勤してよろしいですか？");
       
+      // キャンセルした場合
       if (!isSure) {
+        document.getElementById("status-text").style.color = "#ff334b"; // 赤文字を適用
         updateStatus("キャンセルしました");
         setTimeout(() => { liff.closeWindow(); }, 1500);
         return;
       }
       
+      // OK（早退了承）した場合のローディング表示
       document.getElementById("spinner").style.display = "block";
       // 早退確認済みとして、saitin=yesで退勤処理を実行（checkはWorker側でスキップ）
       resultJson = await submitClockOut(userId, latitude, longitude, "yes", true);
