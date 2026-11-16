@@ -346,7 +346,8 @@ async function main() {
     } 
     else if (resultStatus === 405) {
       document.getElementById("spinner").style.display = "none";
-      const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になりますが、本当に退勤してよろしいですか？");
+      const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になります。<br>また、社員に事前の報告がない場合は降格になります。本当に退勤してよろしいですか？");
+      document.getElementById("status-text").style.color = "#ff334b";
       
       if (!isSure) {
         updateStatus("キャンセルしました");
