@@ -223,7 +223,6 @@
 
 
 const LIFF_ID = "2009827198-ryYvSe19"; 
-// ★退勤用の新しいCloudflare WorkerのURLに変更してください
 const WEBHOOK_URL = "https://taikin.kadowaki-universal-prime.workers.dev/";
 const REGISTER_LIFF_URL = "https://liff.line.me/2009827198-ryYvSe19"; 
 
@@ -239,6 +238,38 @@ function showError(text, showRegisterBtn = false) {
   if (showRegisterBtn) {
     document.getElementById("register-container").style.display = "block";
   }
+}
+
+// ==========================================
+// カスタム確認モーダルを表示する関数
+// ==========================================
+function showCustomConfirm(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("custom-confirm-modal");
+    const msgElement = document.getElementById("modal-message");
+    const okBtn = document.getElementById("confirm-ok");
+    const cancelBtn = document.getElementById("confirm-cancel");
+
+    msgElement.innerText = message;
+    modal.style.display = "flex";
+
+    // 一度イベントをリセットして多重登録を防ぐ
+    const cleanup = () => {
+      modal.style.display = "none";
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+    };
+
+    okBtn.onclick = () => {
+      cleanup();
+      resolve(true); // OKが押された
+    };
+
+    cancelBtn.onclick = () => {
+      cleanup();
+      resolve(false); // キャンセルが押された
+    };
+  });
 }
 
 // ==========================================
@@ -337,7 +368,7 @@ async function main() {
     let resultJson = await submitClockOut(userId, latitude, longitude, "no", false);
     let resultStatus = resultJson.status;
 
-// ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
+    // ▼▼▼ ステータスコードごとの条件分岐 ▼▼▼
     if (resultStatus === 400) {
       document.getElementById("spinner").style.display = "none";
       document.getElementById("status-text").style.color = "#ff334b";
@@ -346,7 +377,9 @@ async function main() {
     } 
     else if (resultStatus === 405) {
       document.getElementById("spinner").style.display = "none";
-      const isSure = window.confirm("予定の退勤時間より前なので本日稼働分が最賃になります。また、社員に事前の報告がない場合は降格になります。本当に退勤してよろしいですか？");
+      
+      // ★ ここをwindow.confirmから自作の赤文字モーダルに変更
+      const isSure = await showCustomConfirm("予定の退勤時間より前なので本日稼働分が最賃になります。また、社員に事前の報告がない場合は降格になります。本当に退勤してよろしいですか？");
       
       // キャンセルした場合
       if (!isSure) {
